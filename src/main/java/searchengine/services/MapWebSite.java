@@ -20,15 +20,14 @@ import java.util.List;
 import java.util.concurrent.RecursiveAction;
 
 public class MapWebSite extends RecursiveAction {
-
     private final String link;
     private final SiteEntity site;
     private final PageRepository pageRepository;
     private final LemmaSearch lemmaSearch;
+
     public static int count = 0;
     public static int countPage = 0;
     public static final LinkedHashSet<String> links = new LinkedHashSet<>();
-
     private final Logger log = LoggerFactory.getLogger(MapWebSite.class);
 
     public MapWebSite(String link, SiteEntity site, PageRepository pageRepository, LemmaSearch lemmaSearch) {
@@ -44,6 +43,7 @@ public class MapWebSite extends RecursiveAction {
             Thread.sleep(100);
             Connection.Response response = getConnection(link);
             List<MapWebSite> tasks = new ArrayList<>();
+            List<Page> pages = new ArrayList<>();
             String path = link.replaceFirst(site.getUrl(), "/");
             String content = response.body();
             Page page = new Page();
@@ -51,10 +51,11 @@ public class MapWebSite extends RecursiveAction {
             page.setPath(path);
             page.setCode(response.statusCode());
             page.setContent(content);
+            pages.add(page);
             synchronized (pageRepository) {
                 pageRepository.save(page);
-                System.out.println("Страница " + page.getPath() + " добавлена в базу данных!");
-                System.out.println("=========================================================================" + "\nСтраница сайта - " + page.getSite().getName() + " Имя страницы - " + page.getPath() + " - Поток  " + Thread.currentThread().getName() + " Колличество страниц - " + countPage++);
+                log.info("Страница " + page.getPath() + " добавлена в базу данных!");
+                log.info("=========================================================================" + "\nСтраница сайта - " + page.getSite().getName() + " Имя страницы - " + page.getPath() + " - Поток  " + Thread.currentThread().getName() + " Колличество страниц - " + countPage++);
                 lemmaSearch.createLemma(page,site);
             }
             if (response.statusCode() < 400) {
@@ -76,9 +77,8 @@ public class MapWebSite extends RecursiveAction {
             for (MapWebSite task : tasks) {
                 task.join();
             }
-
         } catch (IOException e) {
-            System.err.println("For - [" + link + "] - " + e.getMessage());
+            log.info("For - [" + link + "] - " + e.getMessage());
             site.setStatus(Status.FAILED);
             site.setLastError(e.getMessage());
             site.setStatusTime(LocalDateTime.now());

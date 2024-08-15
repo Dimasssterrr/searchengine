@@ -30,7 +30,7 @@ public class IndexingServiceImpl implements IndexingService {
     private final PageRepository pageRepository;
     private final LemmaRepository lemmarepository;
     private final IndexRepository indexRepository;
-    private LemmaSearch lemmaSearch;
+    private final LemmaSearch lemmaSearch;
     private ForkJoinPool pool;
     private ExecutorService executor;
     private final Logger log = LoggerFactory.getLogger(IndexingServiceImpl.class);
@@ -63,14 +63,12 @@ public class IndexingServiceImpl implements IndexingService {
         log.info("Колличество в таблице сайт: " + siteRepository.count());
         log.info("Колличество в таблице страница: " + pageRepository.count());
         addSiteEntity();
-
         for (Site s : sites.getSites()) {
             executor.execute(() -> {
             pool = new ForkJoinPool();
-            System.out.println("=================================================================");
-            System.out.println(Thread.currentThread().getName());
-            System.out.println("=================================================================");
-            System.out.println(pool.isShutdown());
+            log.info("=================================================================");
+            log.info(Thread.currentThread().getName());
+            log.info("=================================================================");
                 String url = s.getUrl().contains("www.") ? s.getUrl().replace("www.", "") : s.getUrl();
             SiteEntity siteEntity = siteRepository.findByUrl(url).orElseThrow();
             MapWebSite site = new MapWebSite(url,siteEntity,pageRepository,lemmaSearch);
@@ -89,14 +87,12 @@ public class IndexingServiceImpl implements IndexingService {
                 response.setResult(false);
                 response.setError("Индексация уже запущена, или произошла ошибка индексации!");
             }
-
                 log.info("2 Потоки остановились - " + pool.isShutdown());
                 log.info("Переменная count - " + MapWebSite.count);
                 log.info("Колличество страниц - " + pageRepository.count());
                 pool.shutdown();
                 log.info("3 Потоки остановились - " + pool.isShutdown());
-                long stop = (System.currentTimeMillis() - start) / 1000;
-                log.info("Индексация проведена за - " + stop + " секунд.");
+                log.info("Индексация проведена за - " + (System.currentTimeMillis() - start) / 1000 + " секунд.");
             });
         }
     }
@@ -120,7 +116,6 @@ public class IndexingServiceImpl implements IndexingService {
                     siteEntity.setLastError(error);
                     siteRepository.save(siteEntity);
                 }
-
             } else {
                 response.setResult(true);
                 response.setError("Индексация не запущена!");
@@ -130,10 +125,10 @@ public class IndexingServiceImpl implements IndexingService {
 
     @Override
     public void dataBaseClearing(String url) {
-        System.out.println("Hello DB clear!");
+        log.info("Hello DB clear!");
         Optional<SiteEntity> site = siteRepository.findByUrl(url);
         if (site.isPresent()) {
-            System.out.println("DB clear work!");
+            log.info("DB clear work!");
             siteRepository.deleteByUrl(url);
         }
     }

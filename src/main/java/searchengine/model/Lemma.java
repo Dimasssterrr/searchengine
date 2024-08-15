@@ -30,20 +30,8 @@ public class Lemma {
     @OneToMany(cascade = CascadeType.REMOVE, mappedBy = "lemmaId", fetch = FetchType.LAZY)
     private List<Index> indexes;
 
-
     public int getSiteById() {
         return siteId.getId();
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Lemma lemma1)) return false;
-        return Objects.equals(getSiteId(), lemma1.getSiteId()) && Objects.equals(getLemma(), lemma1.getLemma());
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(getSiteId(), getLemma());
-    }
 }

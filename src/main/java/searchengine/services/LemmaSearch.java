@@ -4,6 +4,8 @@ import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import searchengine.dto.indexing.IndexingResponse;
@@ -29,7 +31,8 @@ public class LemmaSearch {
     private final PageRepository pageRepository;
     private final LemmaRepository lemmaRepository;
     private final IndexRepository indexRepository;
-    private  static int countLemma = 0;
+    private static int countLemma = 0;
+    private final Logger log = LoggerFactory.getLogger(LemmaSearch.class);
 
     public LemmaSearch(PageRepository pageRepository, LemmaRepository lemmaRepository, IndexRepository indexRepository) throws IOException {
         this.pageRepository = pageRepository;
@@ -37,8 +40,8 @@ public class LemmaSearch {
         this.indexRepository = indexRepository;
     }
 
-    public  HashMap<String, Integer> getLemmas(String text) {
-        String[] words = text.toLowerCase(Locale.ROOT).replaceAll("ё","е")
+    public HashMap<String, Integer> getLemmas(String text) {
+        String[] words = text.toLowerCase(Locale.ROOT).replaceAll("ё", "е")
                 .replaceAll("([^а-я\\s])", " ")
                 .trim()
                 .split("\\s+");
@@ -82,36 +85,35 @@ public class LemmaSearch {
             Connection.Response response = MapWebSite.getConnection(url);
             String content = response.body();
             System.out.println(path);
-        Page page = pageRepository.findByPath(path);
-        if(page != null) {
-            SiteEntity siteEntity = page.getSite();
-            indexingResponse.setResult(true);
-            System.out.println(pageRepository.count());
-            System.out.println("Id страницы - " + page.getId());
-            List<Lemma> lemmas = lemmaRepository.findAllWherePageId(page.getId());
-            lemmas.forEach(e -> {
-                e.setFrequency(e.getFrequency() - 1);
-                lemmaRepository.save(e);
-            });
-            lemmas.stream().sorted((e1,e2)-> e1.getId().compareTo(e2.getId())).forEach(e -> System.out.println(e.getId() + ", " + e.getLemma() + ", " + e.getFrequency() + ", " + e.getSiteId().getId()));
-            pageRepository.deleteById(page.getId());
-            System.out.println("Колличество страниц после удаления: " + pageRepository.count());
-            Page newPage = new Page();
-            newPage.setSite(siteEntity);
-            newPage.setContent(content);
-            newPage.setPath(path);
-            newPage.setCode(response.statusCode());
-            pageRepository.save(newPage);
-            System.out.println("Колличество страниц после добавления: " + pageRepository.count());
-            createLemma(newPage, siteEntity);
-
-        } else {
-            indexingResponse.setResult(false);
-            indexingResponse.setError("Данная страница находится за пределами сайтов, указанных в конфигурационном файле");
+            Page page = pageRepository.findByPath(path);
+            if (page != null) {
+                SiteEntity siteEntity = page.getSite();
+                indexingResponse.setResult(true);
+                log.info("Количество страниц: " + pageRepository.count());
+                log.info("Id страницы - " + page.getId());
+                List<Lemma> lemmas = lemmaRepository.findAllWherePageId(page.getId());
+                lemmas.forEach(e -> {
+                    e.setFrequency(e.getFrequency() - 1);
+                    lemmaRepository.save(e);
+                });
+                lemmas.stream().sorted((e1, e2) -> e1.getId().compareTo(e2.getId())).forEach(e -> System.out.println(e.getId() + ", " + e.getLemma() + ", " + e.getFrequency() + ", " + e.getSiteId().getId()));
+                pageRepository.deleteById(page.getId());
+                log.info("Колличество страниц после удаления: " + pageRepository.count());
+                Page newPage = new Page();
+                newPage.setSite(siteEntity);
+                newPage.setContent(content);
+                newPage.setPath(path);
+                newPage.setCode(response.statusCode());
+                pageRepository.save(newPage);
+                log.info("Колличество страниц после добавления: " + pageRepository.count());
+                createLemma(newPage, siteEntity);
+            } else {
+                indexingResponse.setResult(false);
+                indexingResponse.setError("Данная страница находится за пределами сайтов, указанных в конфигурационном файле");
+            }
+        } catch (Exception e) {
+            log.info(e.getMessage());
         }
-    } catch (Exception e) {
-        System.out.println(e.getMessage());
-    }
         return indexingResponse;
     }
 
@@ -126,25 +128,24 @@ public class LemmaSearch {
                     Lemma oldLemma = lemmaRepository.findByLemmaAndSiteId(e1, site);
                     if (oldLemma == null) {
                         countLemma++;
-                        System.out.println("Начало создания новой лемы страницы - " + page.getPath());
+                        log.info("Начало создания новой лемы страницы - " + page.getPath());
                         Lemma lemma = new Lemma();
                         lemma.setLemma(e1);
                         lemma.setSiteId(site);
                         lemma.setFrequency(1);
                         lemmas.add(lemma);
-                        System.out.println("Новая лемма - " + lemma.getLemma() + " " + lemma.getFrequency());
+                        log.info("Новая лемма - " + lemma.getLemma() + " " + lemma.getFrequency());
 
                         Index index = new Index();
                         index.setLemmaId(lemma);
                         index.setPageId(page);
                         index.setRank((float) e2);
                         indexes.add(index);
-
                     } else {
-                        oldLemma.setFrequency(oldLemma.getFrequency() + 1);//- количество страниц, на которых слово встречается хотя бы один раз.
-                        System.out.println("Старая лемма - " + oldLemma.getLemma() + " " + oldLemma.getFrequency()
+                        oldLemma.setFrequency(oldLemma.getFrequency() + 1);
+                        log.info("Старая лемма - " + oldLemma.getLemma() + " " + oldLemma.getFrequency()
                         );
-                        System.out.println("Обновление старой лемы - " + oldLemma.getLemma() + " - со страницы " + page.getPath() + " в базе данных");
+                        log.info("Обновление старой лемы - " + oldLemma.getLemma() + " - со страницы " + page.getPath() + " в базе данных");
                         Index index = new Index();
                         index.setPageId(page);
                         index.setLemmaId(oldLemma);
@@ -152,17 +153,16 @@ public class LemmaSearch {
                         indexes.add(index);
                     }
                 });
-                System.out.println("Добавление новых лемм в колличестве " + lemmas.size() + " со страницы " + page.getPath() + "  в базу данных");
-                System.out.println("Поток: " + Thread.currentThread().getName());
+                log.info("Добавление новых лемм в колличестве " + lemmas.size() + " со страницы " + page.getPath() + "  в базу данных");
+                log.info("Поток: " + Thread.currentThread().getName());
                 lemmaRepository.saveAll(lemmas);
-                System.out.println("Новые леммы со страницы " + page.getPath() + " в колличестве " + lemmas.size() + " добавлены в базу данных\n");
-                System.out.println("\nКоличество лемм в базе данных - " + lemmaRepository.count() + "\n");
+                log.info("Новые леммы со страницы " + page.getPath() + " в колличестве " + lemmas.size() + " добавлены в базу данных\n");
+                log.info("\nКоличество лемм в базе данных - " + lemmaRepository.count() + "\n");
 
                 indexRepository.saveAll(indexes);
-                System.out.println("Индексы со страницы " + page.getPath() + " в колличестве " + indexes.size() + " добавлены в базу данных");
-                System.out.println("Колличество индексов в базе данных - " + indexRepository.count() + "\n");
-                System.out.println("Колличество повторяющихся лем - " + countLemma);
-
+                log.info("Индексы со страницы " + page.getPath() + " в колличестве " + indexes.size() + " добавлены в базу данных");
+                log.info("Колличество индексов в базе данных - " + indexRepository.count() + "\n");
+                log.info("Колличество повторяющихся лем - " + countLemma);
             }
         }
     }

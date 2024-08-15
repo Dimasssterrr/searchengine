@@ -4,27 +4,17 @@ indexing-settings:
   user-agent: "Mozilla/5.0 (Windows; U; WindowsNT 5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6"
   referrer: "http://www.google.com"
   sites:
-#    - url: https://lenta.ru/
-#      name: Лента.ру
-#    - url: https://skillbox.ru/
-#      name: Skillbox
-#    - url: https://playback.ru/
-#      name: PlayBack
-#    - url: https://energyfm.ru/
-#      name: Энерджи
-#    - url: https://vgtrk.ru/
-#      name: РадиоРоссии
+
+    - url: https://playback.ru/
+      name: PlayBack
     - url: https://sendel.ru/
       name: Sendel
 #    - url: https://nashe.ru/
 #      name: Наше
-#    - url: https://afisha.ru/
-#      name: Афиша
 #    - url:  https://et-cetera.ru/mobile/
 #      name: Эт Сэтера
-#    - url: https://vipavenue.ru/
-#      name: Vipavenue
-
+#    - url: https://dombulgakova.ru/
+#      name: DomBulgakova
 
 server:
   port: 8080
@@ -42,9 +32,11 @@ spring:
 
     hibernate:
       ddl-auto: update
-#    show-sql: true
+    show-sql: false
+    generate_statistics: true
+    order_inserts: true
+    order_updates: true
     jdbc:
-      batch_size: 1000
-      order_inserts: true
-      order_updates: true
+      batch_size: 100
+
 

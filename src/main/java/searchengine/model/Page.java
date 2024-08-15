@@ -35,15 +35,4 @@ public class Page {
 
     private List<Index> indexes;
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Page page)) return false;
-        return Objects.equals(getId(), page.getId()) && Objects.equals(getSite(), page.getSite()) && Objects.equals(getPath(), page.getPath()) && Objects.equals(getCode(), page.getCode()) && Objects.equals(getContent(), page.getContent()) && Objects.equals(getIndexes(), page.getIndexes());
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(getId(), getSite(), getPath(), getCode(), getContent(), getIndexes());
-    }
 }

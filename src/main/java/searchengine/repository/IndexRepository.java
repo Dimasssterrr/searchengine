@@ -10,7 +10,6 @@ import searchengine.model.Index;
 import java.util.List;
 
 @Repository
-//@Transactional
 public interface IndexRepository extends JpaRepository<Index, Integer> {
 
     @Modifying

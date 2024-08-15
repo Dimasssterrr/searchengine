@@ -15,14 +15,12 @@ public class Index {
     @Column(name = "id", nullable = false)
     private Integer id;
 
-    @ManyToOne(optional = false) //cascade = CascadeType.MERGE)
+    @ManyToOne(optional = false)
     @JoinColumn(name = "page_id", nullable = false)
-//    @Column(name = "page_id")
     private Page pageId;
 
-    @ManyToOne(optional = false)// cascade = CascadeType.MERGE)
+    @ManyToOne(optional = false)
     @JoinColumn(name = "lemma_id", nullable = false)
-//    @Column(name = "lemma_id")
     private Lemma lemmaId;
 
     @Column(name = "`rank`", nullable = false)

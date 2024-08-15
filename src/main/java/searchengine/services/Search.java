@@ -29,9 +29,10 @@ public class Search {
     private final LemmaRepository lemmaRepository;
     private final PageRepository pageRepository;
     private final IndexRepository indexRepository;
-    private final int FREQUENCY_PERCENTAGE = 50;
+    private final int FREQUENCY_PERCENTAGE = 90;
     private SiteEntity siteEntity;
     private int count = 0;
+    private long start = 0;
 
     public Search(LemmaSearch lemmaSearch, SitesList sitesList, SearchData data, SiteRepository siteRepository, LemmaRepository lemmaRepository, IndexRepository indexRepository, PageRepository pageRepository) {
         this.lemmaSearch = lemmaSearch;
@@ -46,6 +47,7 @@ public class Search {
     public SearchResponse getResponse(String query, String site, int offset, int limit) {
         AtomicInteger countRelevance = new AtomicInteger();
         SearchResponse response = new SearchResponse();
+        start = System.currentTimeMillis();
         response.setResult(true);
         if (query.isEmpty()) {
             response.setResult(false);
@@ -56,41 +58,39 @@ public class Search {
         if (site != null) {
             siteEntity = siteRepository.findByUrl(site).orElseThrow();
         } else {
-            System.out.println("Поиск по всем сайтам");
+            log.info("Поиск по всем сайтам");
         }
 
         List<Lemma> lemmaList = getLemmas(query);
         List<Lemma> lemmaForMap = new ArrayList<>();
-
-        System.out.println("Лемы из LemmaList:");
+       log.info("Лемы из LemmaList:");
         lemmaList.sort(Comparator.comparing(Lemma::getSiteById).thenComparing(Lemma::getFrequency));
         lemmaList.forEach(lemma -> System.out.println(lemma.getId() + "/" + lemma.getLemma() + "/" + lemma.getSiteId().getName() + "/" + lemma.getFrequency()));
 
         Map<SiteEntity, List<Lemma>> map = lemmaList.stream().collect(Collectors.groupingBy(Lemma::getSiteId));
-        List<Page> remainingPages = new ArrayList<>();
+        List<Page> pagesFirstLemma = new ArrayList<>();
         if (site != null) {
             List<Lemma> listMap = map.get(siteEntity);
             if (listMap != null) {
                 lemmaForMap.addAll(listMap);
-                System.out.println("Колличество страниц в списке после удаления: " +
-                        getPages(listMap, remainingPages, query).size());
+                log.info("Колличество страниц в списке после удаления: " +
+                        getPages(listMap, pagesFirstLemma, query).size());
             }
         } else {
             map.forEach((l1, l2) -> {
-                List<Page> pageList = getPages(l2, remainingPages, query);
+                List<Page> pageList = getPages(l2, pagesFirstLemma, query);
                 lemmaForMap.addAll(l2);
-                System.out.println("Колличество страниц в списке после удаления: " + pageList.size());
+                log.info("Колличество страниц в списке после удаления: " + pageList.size());
             });
         }
-        System.out.println("Список лем: ");
+        log.info("Список лем: ");
         lemmaForMap.forEach(lemma -> System.out.println(lemma.getId() + "/" + lemma.getLemma() + "/" + lemma.getFrequency() + " - " + lemma.getSiteId().getName() + " - " + lemma.getIndexes().get(0).getPageId().getId()));
-        System.out.println(" ============= Список страниц по первой лемме: ==============");
-        remainingPages.forEach(page -> System.out.println(page.getId() + "/" + page.getSite().getUrl().substring(0, page.getSite().getUrl().length() - 1) + page.getPath()));
-        System.out.println("===================================================");
+        log.info(" Список страниц по первой лемме: ");
+        pagesFirstLemma.forEach(page -> System.out.println(page.getId() + "/" + page.getSite().getUrl().substring(0, page.getSite().getUrl().length() - 1) + page.getPath()));
         List<SearchData> dataList = new ArrayList<>();
-        response.setCount(remainingPages.size());
-        List<Float> relevance = relevant(lemmaForMap, remainingPages);
-        remainingPages.forEach(page -> {
+        response.setCount(pagesFirstLemma.size());
+        List<Float> relevance = relevant(lemmaForMap, pagesFirstLemma);
+        pagesFirstLemma.forEach(page -> {
             countRelevance.getAndIncrement();
             Document doc = Jsoup.parse(page.getContent());
             SearchData searchData = new SearchData();
@@ -124,13 +124,13 @@ public class Search {
     public List<Lemma> getLemmas(String query) {
         Set<String> lemmasQuery = lemmaSearch.getLemmas(query).keySet();
         List<Lemma> lemmaList = new ArrayList<>();
-        System.out.println("Лемы из базы: ");
+        log.info("Лемы из базы: ");
         lemmasQuery.forEach(lemmaWord -> {
             List<Lemma> lemmaListDB = lemmaRepository.findByLemma(lemmaWord);
             lemmaListDB.forEach(lemma -> {
                 int countPage = pageRepository.countWhereSiteId(lemma.getSiteId().getId());
                 double frequent = ((double) lemma.getFrequency() / countPage) * 100;
-                System.out.println(lemma.getId() + "/" + lemma.getLemma() + "/" + lemma.getSiteId().getName() + "/" + lemma.getFrequency());
+                log.info(lemma.getId() + "/" + lemma.getLemma() + "/" + lemma.getSiteId().getName() + "/" + lemma.getFrequency());
                 if (frequent < FREQUENCY_PERCENTAGE) {
                     lemmaList.add(lemma);
                 }
@@ -146,17 +146,17 @@ public class Search {
         }
         listMap.sort(Comparator.comparing(Lemma::getFrequency));
         List<Index> indexList = indexRepository.findWhereLemmaId(listMap.get(0).getId());
-        System.out.println("Первая самая редкая лемма - " + listMap.get(0).getId() + "/" + listMap.get(0).getLemma() + "/" + listMap.get(0).getFrequency() + "/" + listMap.get(0).getSiteId().getName());
+        log.info("Первая самая редкая лемма - " + listMap.get(0).getId() + "/" + listMap.get(0).getLemma() + "/" + listMap.get(0).getFrequency() + "/" + listMap.get(0).getSiteId().getName());
         indexList.forEach(index -> {
             pages.add(index.getPageId());
             remainingPages.add(index.getPageId());
         });
-        System.out.println("Колличество страниц в списке до удаления: " + remainingPages.size());
+        log.info("Колличество страниц в списке до удаления: " + remainingPages.size());
         for (int i = 0; i < listMap.size(); i++) {
             for (Page page : pages) {
                 Index index = indexRepository.findWhereLemmaIdPageId(listMap.get(i).getId(), page.getId());
                 if (index == null) {
-                    System.out.println("Удалена страница - " + page.getId() + "/" + page.getPath());
+                   log.info("Удалена страница - " + page.getId() + "/с сайта: " + page.getSite().getName());
                     remainingPages.remove(page);
                 }
             }
@@ -165,15 +165,14 @@ public class Search {
     }
 
     public String getSnippet(Page page, String query) {
-        String snippet = "";
         Document doc = Jsoup.parse(page.getContent());
         String text = doc.text();
         Set<String> lemmasQuery = lemmaSearch.getLemmas(query).keySet();
-        String[] wordsText = text.replaceAll(",", "").split("\\s+");
+        String[] wordsText = text.split("\\s+");
         List<Integer> indexes = new ArrayList<>();
         count++;
-        System.out.println("-------- Страница - " + count + " /" + page.getId() + "/" + page.getSite().getName());
-        List<String> list = new LinkedList<>(Arrays.asList(wordsText));
+        log.info("Страница - " + count + " /" + page.getId() + "/" + page.getSite().getName());
+        List<String> listWords = new LinkedList<>(Arrays.asList(wordsText));
         for (int i = 0; i < wordsText.length; i++) {
             for (String lemmaQuery : lemmasQuery) {
                 Set<String> lemmas = lemmaSearch.getLemmas(wordsText[i]).keySet();
@@ -187,10 +186,11 @@ public class Search {
                 }
             }
         }
-        return addTag(indexes, list, snippet);
+        return addTag(indexes, listWords);
     }
 
-    public String addTag(List<Integer> indexes, List<String> list, String snippet) {
+    public String addTag(List<Integer> indexes, List<String> list) {
+        StringBuilder snippetAddTag = new StringBuilder();
         String tagBefore = "<b>";
         String tagAfter = "</b>";
         Integer[] indices = new Integer[indexes.size()];
@@ -205,9 +205,9 @@ public class Search {
             }
         }
         for (String word : list) {
-            snippet += word + " ";
+            snippetAddTag.append(word).append(" ");
         }
-        return getLine(snippet);
+        return getLine(snippetAddTag.toString());
     }
 
     public List<Float> relevant(List<Lemma> lemmas, List<Page> pages) {
@@ -216,28 +216,18 @@ public class Search {
         for (Page page : pages) {
             float absRelevance = 0;
             for (Lemma lemma : lemmas) {
-                System.out.println("Lemma:");
-                System.out.println(lemma.getId() + "/" + lemma.getLemma() + "/" + page.getId());
                 Index index = indexRepository.findWhereLemmaIdPageId(lemma.getId(), page.getId());
                 if (index != null) {
-                    System.out.println("Index:");
-                    System.out.println(index.getLemmaId().getId() + "/" + index.getPageId().getId() + "/" + index.getRank());
                     absRelevance += index.getRank();
                 }
             }
-            System.out.println("End=================End=======================End");
             absoluteRelevant.add(absRelevance);
         }
         if (!absoluteRelevant.isEmpty()) {
             Float max = absoluteRelevant.stream().max(Float::compareTo).orElseThrow();
-            System.out.println("AbsRelevance: ");
-            absoluteRelevant.forEach(System.out::println);
-            System.out.println("Max: " + max);
-
             for (Float relevance : absoluteRelevant) {
                 float relevant = relevance / max;
                 relativeRelevance.add(relevant);
-                System.out.println("RelativeRelevance: " + relevant);
             }
         }
         return relativeRelevance;
@@ -245,7 +235,8 @@ public class Search {
 
     public String getLine(String snippet) {
         String[] words = snippet.split("\\s+");
-        String line = "";
+        StringBuilder line = new StringBuilder();
+        StringBuilder finalSnippet = new StringBuilder();
         for (int i = 0; i < words.length - 3; i++) {
             if (i > 0 && words[i].equals("<b>") && words[i - 1].equals("</b>")) {
                 continue;
@@ -253,25 +244,23 @@ public class Search {
             if (words[i].equals("</b>") && words[i + 3].equals("</b>")) {
                 continue;
             }
-            line += words[i] + " ";
+            line.append(words[i]).append(" ");
         }
-        List<Integer> indices = wordIndices(line, "<b>");
-        String finalSnippet = "";
+        List<Integer> indices = wordIndices(line.toString(), "<b>");
         for (int i = 0; i < indices.size(); i++) {
             int before = Math.max(indices.get(i) - 20, 0);
-            int after = Math.min(indices.get(i) + 50, line.length() -1);
-            String lineBefore = "";
-            lineBefore = trimLine(line, before, after);
+            int after = Math.min(indices.get(i) + 50, line.length() - 1);
+            String fragmentSnippet = trimLine(line.toString(), before, after);
+            System.out.println(indices.get(i) + "/" + before + "/" + after);
             if (before != 0) {
-                lineBefore = " ... " + lineBefore;
+                fragmentSnippet = " ... " + fragmentSnippet;
             }
             if (after != line.length()) {
-                lineBefore = lineBefore + " ... ";
+                fragmentSnippet = fragmentSnippet + " ... ";
             }
-            finalSnippet += lineBefore;
+            finalSnippet.append(fragmentSnippet).append(" ");
         }
-        System.out.println(finalSnippet);
-        return finalSnippet;
+        return finalSnippet.toString();
     }
 
     public List<Integer> wordIndices(String line, String word) {
@@ -298,6 +287,9 @@ public class Search {
             if (firstSpaceIndex != -1) {
                 substring = substring.substring(firstSpaceIndex + 1);
             }
+        }
+        String[] tokens = substring.split("\\s");
+        if(tokens[tokens.length -1].equals("<b>")) {
         }
         return substring;
     }
