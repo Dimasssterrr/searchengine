@@ -47,68 +47,77 @@ public class IndexingServiceImpl implements IndexingService {
     }
     @Override
     public IndexingResponse startThread() {
-        IndexingResponse response = new IndexingResponse();
-        CompletableFuture.runAsync(() -> startIndexing());
-        response.setResult(true);
-        return response;
+        try {
+            IndexingResponse response = new IndexingResponse();
+            CompletableFuture.runAsync(() -> startIndexing());
+            response.setResult(true);
+            return response;
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return new IndexingResponse(false, e.getMessage());
+        }
     }
-    @Override
-    public void startIndexing() {
-        flag = true;
-        long start = System.currentTimeMillis();
-        IndexingResponse response = new IndexingResponse();
-        executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-        log.info("Запуск индексации - " + sites.getSites().size() + " сайтов.");
-        log.info("Переменная - " + MapWebSite.count);
-        log.info("Колличество в таблице сайт: " + siteRepository.count());
-        log.info("Колличество в таблице страница: " + pageRepository.count());
-        addSiteEntity();
-        for (Site s : sites.getSites()) {
-            executor.execute(() -> {
-            pool = new ForkJoinPool();
-            log.info("=================================================================");
-            log.info(Thread.currentThread().getName());
-            log.info("=================================================================");
-                String url = s.getUrl().contains("www.") ? s.getUrl().replace("www.", "") : s.getUrl();
-            SiteEntity siteEntity = siteRepository.findByUrl(url).orElseThrow();
-            MapWebSite site = new MapWebSite(url,siteEntity,pageRepository,lemmaSearch);
-            pool.invoke(site);
-            log.info("Колличество активных потоков после - " + pool.getActiveThreadCount());
-            log.info("Статус индексации - " + siteEntity.getStatus());
 
-            if(siteEntity.getStatus().equals(Status.INDEXING)) {
-                siteEntity.setStatus(Status.INDEXED);
-                siteEntity.setStatusTime(LocalDateTime.now());
-                siteRepository.save(siteEntity);
-                response.setResult(true);
-            } else {
-                siteEntity.setStatus(Status.FAILED);
-                siteRepository.save(siteEntity);
-                response.setResult(false);
-                response.setError("Индексация уже запущена, или произошла ошибка индексации!");
+    @Override
+    public void startIndexing()  {
+        try {
+            flag = true;
+            long start = System.currentTimeMillis();
+            IndexingResponse response = new IndexingResponse();
+            executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+            log.info("Запуск индексации - " + sites.getSites().size() + " сайтов.");
+            log.info("Переменная - " + MapWebSite.count);
+            log.info("Колличество в таблице сайт: " + siteRepository.count());
+            log.info("Колличество в таблице страница: " + pageRepository.count());
+            addSiteEntity();
+            for (Site s : sites.getSites()) {
+                executor.execute(() -> {
+                    pool = new ForkJoinPool();
+                    log.info("=================================================================");
+                    log.info(Thread.currentThread().getName());
+                    log.info("=================================================================");
+                    String url = s.getUrl().contains("www.") ? s.getUrl().replace("www.", "") : s.getUrl();
+                    SiteEntity siteEntity = siteRepository.findByUrl(url).orElseThrow();
+                    MapWebSite site = new MapWebSite(url, siteEntity, pageRepository, lemmaSearch);
+                    pool.invoke(site);
+                    log.info("Колличество активных потоков после - " + pool.getActiveThreadCount());
+                    log.info("Статус индексации - " + siteEntity.getStatus());
+
+                    if (siteEntity.getStatus().equals(Status.INDEXING)) {
+                        siteEntity.setStatus(Status.INDEXED);
+                        siteEntity.setStatusTime(LocalDateTime.now());
+                        siteRepository.save(siteEntity);
+                        response.setResult(true);
+                    } else {
+                        siteEntity.setStatus(Status.FAILED);
+                        siteRepository.save(siteEntity);
+                        response.setResult(false);
+                        response.setError("Индексация уже запущена, или произошла ошибка индексации!");
+                    }
+                    log.info("Переменная count - " + MapWebSite.count);
+                    log.info("Колличество страниц - " + pageRepository.count());
+                    pool.shutdown();
+                    log.info("Индексация проведена за - " + (System.currentTimeMillis() - start) / 1000 + " секунд.");
+                });
             }
-                log.info("2 Потоки остановились - " + pool.isShutdown());
-                log.info("Переменная count - " + MapWebSite.count);
-                log.info("Колличество страниц - " + pageRepository.count());
-                pool.shutdown();
-                log.info("3 Потоки остановились - " + pool.isShutdown());
-                log.info("Индексация проведена за - " + (System.currentTimeMillis() - start) / 1000 + " секунд.");
-            });
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            throw new RuntimeException(e.getMessage());
         }
     }
     @Override
     public IndexingResponse stopIndexing() {
-        IndexingResponse response = new IndexingResponse();
+        try {
+            IndexingResponse response = new IndexingResponse();
             if (pool != null && !pool.isShutdown() && flag) {
-            pool.shutdownNow();
+                pool.shutdownNow();
                 response.setResult(true);
                 String error = "Индексация остановлена пользователем!";
                 response.setError(error);
-
                 for (Site s : sites.getSites()) {
                     String url = s.getUrl().contains("www.") ? s.getUrl().replace("www.", "") : s.getUrl();
                     SiteEntity siteEntity = siteRepository.findByUrl(url).orElseThrow();
-                    if(siteEntity.getStatus().equals(Status.INDEXED)){
+                    if (siteEntity.getStatus().equals(Status.INDEXED)) {
                         continue;
                     }
                     siteEntity.setStatus(Status.FAILED);
@@ -120,7 +129,11 @@ public class IndexingServiceImpl implements IndexingService {
                 response.setResult(true);
                 response.setError("Индексация не запущена!");
             }
-        return response;
+            return response;
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return new IndexingResponse(false, e.getMessage());
+        }
     }
 
     @Override

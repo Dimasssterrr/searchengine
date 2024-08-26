@@ -24,7 +24,6 @@ import java.util.Random;
 @RequiredArgsConstructor
 public class StatisticsServiceImpl implements StatisticsService {
 
-    private final Random random = new Random();
     private final SitesList sites;
     private final PageRepository pageRepository;
     private final LemmaRepository lemmaRepository;
@@ -32,29 +31,20 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     @Override
     public StatisticsResponse getStatistics() {
-
-        String[] errors = {
-                "Ошибка индексации: главная страница сайта не доступна",
-                "Ошибка индексации: сайт не доступен",
-                ""
-        };
-
         TotalStatistics total = new TotalStatistics();
         total.setSites(sites.getSites().size());
         total.setIndexing(true);
 
-
         List<DetailedStatisticsItem> detailed = new ArrayList<>();
         List<Site> sitesList = sites.getSites();
-        for(int i = 0; i < sitesList.size(); i++) {
+        for (int i = 0; i < sitesList.size(); i++) {
             Site site = sitesList.get(i);
             DetailedStatisticsItem item = new DetailedStatisticsItem();
             item.setName(site.getName());
             item.setUrl(site.getUrl());
             SiteEntity siteEntity = siteRepository.findByName(site.getName());
-//            LoggerFactory.getLogger(StatisticsServiceImpl.class).info("Колличество страниц - " + pages);
             int pages = pageRepository.countWhereSiteId(siteEntity.getId());
-            int lemmas =  lemmaRepository.countWhereSiteId(siteEntity.getId());
+            int lemmas = lemmaRepository.countWhereSiteId(siteEntity.getId());
             Status statuses = siteEntity.getStatus();
             String error = siteEntity.getLastError();
             LocalDateTime localDateTime = LocalDateTime.parse(siteEntity.getStatusTime().toString());
@@ -76,5 +66,6 @@ public class StatisticsServiceImpl implements StatisticsService {
         response.setStatistics(data);
         response.setResult(true);
         return response;
+
     }
 }

@@ -10,7 +10,7 @@ import searchengine.model.Page;
 import java.util.List;
 
 @Repository
-//@Transactional
+
 public interface PageRepository extends JpaRepository<Page,Integer> {
     Page findByPath(String path);
 

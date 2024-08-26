@@ -1,5 +1,6 @@
 package searchengine.controllers;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import searchengine.dto.indexing.IndexingResponse;
@@ -33,7 +34,7 @@ public class ApiController {
     }
     @GetMapping("/startIndexing")
     public ResponseEntity<IndexingResponse> startIndexing() {
-    return ResponseEntity.ok(indexingServiceImpl.startThread());
+        return ResponseEntity.ok(indexingServiceImpl.startThread());
     }
     @GetMapping("/stopIndexing")
     public ResponseEntity<IndexingResponse> stopIndexing() {
@@ -41,7 +42,6 @@ public class ApiController {
     }
     @PostMapping("/indexPage")
     public ResponseEntity<IndexingResponse> indexPage(@RequestParam String url) {
-
         return ResponseEntity.ok(lemmaSearch.indexingWebPage(url));
     }
     @GetMapping("/search")

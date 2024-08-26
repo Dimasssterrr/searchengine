@@ -7,6 +7,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import searchengine.dto.indexing.IndexingResponse;
 import searchengine.model.Page;
 import searchengine.model.SiteEntity;
 import searchengine.model.Status;
@@ -38,7 +39,7 @@ public class MapWebSite extends RecursiveAction {
 
     }
     @Override
-    protected void compute() {
+    protected void compute()  {
         try {
             Thread.sleep(100);
             Connection.Response response = getConnection(link);
@@ -77,13 +78,11 @@ public class MapWebSite extends RecursiveAction {
             for (MapWebSite task : tasks) {
                 task.join();
             }
-        } catch (IOException e) {
-            log.info("For - [" + link + "] - " + e.getMessage());
+        } catch (Exception e) {
+            log.error("For - [" + link + "] - " + e.getMessage());
             site.setStatus(Status.FAILED);
             site.setLastError(e.getMessage());
             site.setStatusTime(LocalDateTime.now());
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
         }
     }
 

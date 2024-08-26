@@ -78,8 +78,8 @@ public class LemmaSearch {
     }
 
     public IndexingResponse indexingWebPage(String url) {
-        IndexingResponse indexingResponse = new IndexingResponse();
         try {
+            IndexingResponse indexingResponse = new IndexingResponse();
             URI uri = new URI(url);
             String path = uri.getPath();
             Connection.Response response = MapWebSite.getConnection(url);
@@ -111,10 +111,13 @@ public class LemmaSearch {
                 indexingResponse.setResult(false);
                 indexingResponse.setError("Данная страница находится за пределами сайтов, указанных в конфигурационном файле");
             }
+            return indexingResponse;
+
         } catch (Exception e) {
-            log.info(e.getMessage());
+            log.error(e.getMessage());
+            return  new IndexingResponse(false, e.getMessage());
         }
-        return indexingResponse;
+
     }
 
     @Transactional

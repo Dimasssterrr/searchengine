@@ -4,17 +4,16 @@ indexing-settings:
   user-agent: "Mozilla/5.0 (Windows; U; WindowsNT 5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6"
   referrer: "http://www.google.com"
   sites:
-
     - url: https://playback.ru/
       name: PlayBack
     - url: https://sendel.ru/
       name: Sendel
-#    - url: https://nashe.ru/
-#      name: Наше
+    - url: https://nashe.ru/
+      name: Наше
 #    - url:  https://et-cetera.ru/mobile/
 #      name: Эт Сэтера
-#    - url: https://dombulgakova.ru/
-#      name: DomBulgakova
+    - url: https://dombulgakova.ru/
+      name: DomBulgakova
 
 server:
   port: 8080
@@ -38,5 +37,6 @@ spring:
     order_updates: true
     jdbc:
       batch_size: 100
-
+app:
+  frequency percentage: 100
 
